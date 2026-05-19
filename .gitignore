@@ -1,0 +1,12 @@
+# Logs
+watcher.log
+tests/test.log
+
+# Runtime snapshot (persists between live runs)
+tests/live_snap.json
+
+# Test artefacts
+tests/snap_*.json
+tests/__pycache__/
+__pycache__/
+*.pyc
