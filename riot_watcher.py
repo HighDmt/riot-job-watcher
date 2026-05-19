@@ -3,7 +3,7 @@ import json
 import os
 import time
 from bs4 import BeautifulSoup
-from datetime import datetime
+from datetime import datetime, timezone
 
 DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL", "")
 JOBS_URL = "https://www.riotgames.com/en/work-with-us/jobs"
@@ -45,7 +45,7 @@ def send_discord_alert(message, color):
         "embeds": [{
             "description": message,
             "color": color,  # 0x00ff00 = green (new), 0xff0000 = red (removed)
-            "footer": {"text": f"Checked at {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}"}
+            "footer": {"text": f"Checked at {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}"}
         }]
     }
     requests.post(DISCORD_WEBHOOK_URL, json=payload)
@@ -68,7 +68,7 @@ def check_for_changes():
         print(f"REMOVED: {job['title']}")
 
     if not added and not removed:
-        print(f"[{datetime.utcnow().strftime('%H:%M:%S')}] No changes.")
+        print(f"[{datetime.now(timezone.utc).strftime('%H:%M:%S')}] No changes.")
 
     save_snapshot(current)
 
