@@ -1,6 +1,9 @@
 # Secrets
 .env
 
+# Runtime snapshot (managed by GitHub Actions cache locally)
+mmo_jobs.json
+
 # Logs
 watcher.log
 tests/test.log
