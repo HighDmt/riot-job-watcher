@@ -1,7 +1,6 @@
 import requests
 import json
 import os
-import subprocess
 import time
 import sys
 import logging
@@ -31,33 +30,6 @@ class PrependFileHandler(logging.FileHandler):
             self.handleError(record)
 
 
-def show_windows_notification(title, message, level=logging.WARNING):
-    safe_title = title.replace('"', '').replace("'", '')
-    safe_message = message.replace('"', '').replace("'", '')
-    icon = 'Error' if level >= logging.ERROR else 'Warning'
-    tip_icon = 'Error' if level >= logging.ERROR else 'Warning'
-    ps = (
-        'Add-Type -AssemblyName System.Windows.Forms; '
-        '$n = New-Object System.Windows.Forms.NotifyIcon; '
-        f'$n.Icon = [System.Drawing.SystemIcons]::{icon}; '
-        '$n.Visible = $true; '
-        f'$n.ShowBalloonTip(8000, "{safe_title}", "{safe_message}", '
-        f'[System.Windows.Forms.ToolTipIcon]::{tip_icon}); '
-        'Start-Sleep 9; '
-        '$n.Dispose()'
-    )
-    subprocess.Popen(
-        ['powershell', '-WindowStyle', 'Hidden', '-NonInteractive', '-Command', ps],
-        creationflags=subprocess.CREATE_NO_WINDOW
-    )
-
-
-class WindowsWarningHandler(logging.Handler):
-    def emit(self, record):
-        title = "Riot Watcher — Error" if record.levelno >= logging.ERROR else "Riot Watcher — Warning"
-        show_windows_notification(title, self.format(record), level=record.levelno)
-
-
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -67,10 +39,6 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
-_notify_handler = WindowsWarningHandler()
-_notify_handler.setLevel(logging.WARNING)
-_notify_handler.setFormatter(logging.Formatter('%(levelname)s - %(message)s'))
-logger.addHandler(_notify_handler)
 
 DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
 JOBS_URL = "https://www.riotgames.com/en/work-with-us/jobs"
@@ -158,9 +126,7 @@ def send_discord_alert(message, color, max_retries=2):
                 "embeds": [{
                     "description": message,
                     "color": color,
-                    "thumbnail": {
-                        "url": RIOT_ICON
-                    },
+                    "thumbnail": {"url": RIOT_ICON},
                     "footer": {
                         "text": f"Checked at {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}",
                         "icon_url": RIOT_ICON
