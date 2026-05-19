@@ -1,3 +1,6 @@
+# Secrets
+.env
+
 # Logs
 watcher.log
 tests/test.log

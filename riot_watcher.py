@@ -72,7 +72,7 @@ _notify_handler.setLevel(logging.WARNING)
 _notify_handler.setFormatter(logging.Formatter('%(levelname)s - %(message)s'))
 logger.addHandler(_notify_handler)
 
-DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1506305530761576478/4vRRQOyCjYp2uAhge-kjSNzCa768QkMZTPN9qAV078On_4UontRWdcXtVjOldjgRlVmM"
+DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
 JOBS_URL = "https://www.riotgames.com/en/work-with-us/jobs"
 SNAPSHOT_FILE = os.path.join(log_dir, "mmo_jobs.json")
 CHECK_INTERVAL = int(os.getenv("CHECK_INTERVAL", 3600))
@@ -231,12 +231,16 @@ def check_for_changes():
     save_snapshot(current)
 
 if __name__ == "__main__":
-    logger.info(f"Starting Riot MMO job watcher (check interval: {CHECK_INTERVAL}s)")
-
-    while True:
-        try:
-            check_for_changes()
-        except Exception as e:
-            logger.error(f"Unexpected error in main loop: {e}", exc_info=True)
-
-        time.sleep(CHECK_INTERVAL)
+    if not DISCORD_WEBHOOK_URL:
+        logger.error("DISCORD_WEBHOOK_URL environment variable is not set")
+        sys.exit(1)
+    if "--once" in sys.argv:
+        check_for_changes()
+    else:
+        logger.info(f"Starting Riot MMO job watcher (check interval: {CHECK_INTERVAL}s)")
+        while True:
+            try:
+                check_for_changes()
+            except Exception as e:
+                logger.error(f"Unexpected error in main loop: {e}", exc_info=True)
+            time.sleep(CHECK_INTERVAL)

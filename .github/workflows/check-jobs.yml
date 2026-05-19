@@ -1,0 +1,28 @@
+name: Check Riot MMO Jobs
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # every hour
+  workflow_dispatch:       # manual trigger from GitHub UI
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: mmo_jobs.json
+          key: mmo-jobs-snapshot-${{ github.run_id }}
+          restore-keys: mmo-jobs-snapshot-
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - run: pip install requests beautifulsoup4
+
+      - run: python riot_watcher.py --once
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
