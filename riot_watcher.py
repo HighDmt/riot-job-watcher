@@ -3,7 +3,7 @@ import json
 import os
 import time
 from bs4 import BeautifulSoup
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL", "")
 JOBS_URL = "https://www.riotgames.com/en/work-with-us/jobs"
@@ -69,6 +69,10 @@ def check_for_changes():
 
     if not added and not removed:
         print(f"[{datetime.now(timezone.utc).strftime('%H:%M:%S')}] No changes.")
+    
+    next_fetch = datetime.now(timezone.utc).strftime('%H:%M:%S')
+    next_time = (datetime.now(timezone.utc) + timedelta(seconds=CHECK_INTERVAL)).strftime('%H:%M:%S UTC')
+    print(f"Next fetch at: {next_time}")
 
     save_snapshot(current)
 
