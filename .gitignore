@@ -4,6 +4,9 @@
 # Runtime snapshot (managed by GitHub Actions cache locally)
 mmo_jobs.json
 
+# Test environment
+tests/
+
 # Logs
 watcher.log
 tests/test.log
