@@ -2,7 +2,7 @@ name: Check Riot MMO Jobs
 
 on:
   schedule:
-    - cron: '0 * * * *'  # every hour
+    - cron: '0 */2 * * *'  # every 2 hours
   workflow_dispatch:       # manual trigger from GitHub UI
 
 env:
