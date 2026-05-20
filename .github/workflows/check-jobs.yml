@@ -4,6 +4,7 @@ on:
   schedule:
     - cron: '0 */2 * * *'  # every 2 hours
   workflow_dispatch:       # manual trigger from GitHub UI
+  # schedule re-registered
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
