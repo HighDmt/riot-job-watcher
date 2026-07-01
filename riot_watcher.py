@@ -5,45 +5,19 @@ import time
 import sys
 import logging
 from bs4 import BeautifulSoup
-from datetime import datetime, timezone, timedelta
-
-log_dir = os.path.dirname(os.path.abspath(__file__))
-log_file = os.path.join(log_dir, "watcher.log")
-
-
-MAX_LOG_LINES = 750
-
-
-class PrependFileHandler(logging.FileHandler):
-    def emit(self, record):
-        msg = self.format(record) + '\n'
-        try:
-            if os.path.exists(self.baseFilename):
-                with open(self.baseFilename, 'r', encoding='utf-8') as f:
-                    lines = f.readlines()
-                existing = ''.join(lines[:MAX_LOG_LINES - 1])
-            else:
-                existing = ''
-            with open(self.baseFilename, 'w', encoding='utf-8') as f:
-                f.write(msg + existing)
-        except Exception:
-            self.handleError(record)
-
+from datetime import datetime, timezone
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        PrependFileHandler(log_file),
-        logging.StreamHandler(sys.stdout)
-    ]
+    handlers=[logging.StreamHandler(sys.stdout)]
 )
 logger = logging.getLogger(__name__)
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
 JOBS_URL = "https://www.riotgames.com/en/work-with-us/jobs"
-SNAPSHOT_FILE = os.path.join(log_dir, "mmo_jobs.json")
-CHECK_INTERVAL = int(os.getenv("CHECK_INTERVAL", 3600))
+SNAPSHOT_FILE = os.path.join(BASE_DIR, "mmo_jobs.json")
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
@@ -64,6 +38,12 @@ def fetch_mmo_jobs(max_retries=3):
 
             if not job_links:
                 logger.warning("No job links found. Page structure may have changed.")
+                send_discord_alert(
+                    "⚠️ **Riot job watcher: no job links found**\n\n"
+                    f"The [careers page]({JOBS_URL}) returned no matching links — "
+                    "the page structure may have changed and scraping is likely broken.",
+                    0xffaa00
+                )
                 return None
 
             for link in job_links:
@@ -135,7 +115,7 @@ def send_discord_alert(message, color, max_retries=2):
             }
             r = requests.post(DISCORD_WEBHOOK_URL, json=payload, timeout=10)
             if r.status_code == 204:
-                logger.info(f"Discord alert sent successfully")
+                logger.info("Discord alert sent successfully")
             else:
                 logger.warning(f"Discord returned status {r.status_code}")
             return
@@ -155,10 +135,19 @@ def check_for_changes():
 
     previous = load_snapshot()
 
+    now = datetime.now(timezone.utc).isoformat()
+
+    # Cold start (first run or cache eviction): seed silently, don't alert on
+    # every existing job as if it were newly posted.
+    if not previous:
+        for job in current.values():
+            job["first_seen"] = now
+        save_snapshot(current)
+        logger.info(f"Seeded initial snapshot ({len(current)} jobs), no alerts sent")
+        return
+
     added = {k: v for k, v in current.items() if k not in previous}
     removed = {k: v for k, v in previous.items() if k not in current}
-
-    now = datetime.now(timezone.utc).isoformat()
 
     for url_id, job in added.items():
         current[url_id]["first_seen"] = now
@@ -191,22 +180,10 @@ def check_for_changes():
     if not added and not removed:
         logger.info("No changes detected")
 
-    next_time = (datetime.now(timezone.utc) + timedelta(seconds=CHECK_INTERVAL)).strftime('%H:%M:%S UTC')
-    logger.info(f"Next check at: {next_time}")
-
     save_snapshot(current)
 
 if __name__ == "__main__":
     if not DISCORD_WEBHOOK_URL:
         logger.error("DISCORD_WEBHOOK_URL environment variable is not set")
         sys.exit(1)
-    if "--once" in sys.argv:
-        check_for_changes()
-    else:
-        logger.info(f"Starting Riot MMO job watcher (check interval: {CHECK_INTERVAL}s)")
-        while True:
-            try:
-                check_for_changes()
-            except Exception as e:
-                logger.error(f"Unexpected error in main loop: {e}", exc_info=True)
-            time.sleep(CHECK_INTERVAL)
+    check_for_changes()
