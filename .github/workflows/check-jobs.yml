@@ -4,7 +4,15 @@ on:
   schedule:
     - cron: '0 */6 * * *'  # every 6 hours
   workflow_dispatch:       # manual trigger from GitHub UI
-  # schedule re-registered
+
+# Needed to commit the updated snapshot back to the repo
+permissions:
+  contents: write
+
+# Serialize runs so a scheduled run and a manual run can't push at once
+concurrency:
+  group: riot-watcher-snapshot
+  cancel-in-progress: false
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -14,12 +22,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/cache@v4
-        with:
-          path: mmo_jobs.json
-          key: mmo-jobs-snapshot-${{ github.run_id }}
-          restore-keys: mmo-jobs-snapshot-
 
       - uses: actions/setup-python@v5
         with:
@@ -31,3 +33,15 @@ jobs:
       - run: python riot_watcher.py --once
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+
+      - name: Commit updated snapshot
+        run: |
+          if git diff --quiet mmo_jobs.json; then
+            echo "No snapshot changes to commit"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add mmo_jobs.json
+            git commit -m "Update job snapshot [skip ci]"
+            git push
+          fi
